@@ -133,9 +133,9 @@ evaluation:
     gap: 1
 
   temporal_split:
-    train_end: "2024-10-15"
-    test_start: "2024-10-16"
-    test_end: "2024-11-05"
+    train_end: "2025-06-30"
+    test_start: "2025-07-01"
+    test_end: "2025-12-31"
 
   trading_sim:
     transaction_cost_pct: 0.01
