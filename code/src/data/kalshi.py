@@ -2,6 +2,7 @@
 
 import logging
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -26,6 +27,7 @@ class KalshiClient:
         self.interim_dir = Path(interim_dir)
         self.min_volume = min_volume
         self._last_request = 0.0
+        self._cutoff_cache: dict | None = None
 
         self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.interim_dir.mkdir(parents=True, exist_ok=True)
@@ -47,10 +49,11 @@ class KalshiClient:
     # ── Historical cutoff ─────────────────────────────────────────
 
     def get_cutoff(self) -> dict:
-        """Return timestamps separating live from historical data."""
-        data = self._get(f"{BASE_URL}/historical/cutoff")
-        logger.info("Historical cutoff: %s", data)
-        return data
+        """Return timestamps separating live from historical data (cached)."""
+        if self._cutoff_cache is None:
+            self._cutoff_cache = self._get(f"{BASE_URL}/historical/cutoff")
+            logger.info("Historical cutoff: %s", self._cutoff_cache)
+        return self._cutoff_cache
 
     # ── Market discovery ──────────────────────────────────────────
 
@@ -155,7 +158,13 @@ class KalshiClient:
         """Fetch candlestick data, querying both live and historical endpoints."""
         ticker = market["ticker"]
         cutoff = self.get_cutoff()
-        market_cutoff_ts = cutoff.get("market_settled_ts", 0)
+        raw_cutoff = cutoff.get("market_settled_ts", "1970-01-01T00:00:00Z")
+        if isinstance(raw_cutoff, str):
+            market_cutoff_ts = int(
+                datetime.fromisoformat(raw_cutoff.replace("Z", "+00:00")).timestamp()
+            )
+        else:
+            market_cutoff_ts = int(raw_cutoff)
 
         candles: list[dict] = []
 
@@ -194,6 +203,15 @@ class KalshiClient:
         return candles
 
     @staticmethod
+    def _parse_price_field(price: dict, field: str) -> float:
+        """Extract a price field, handling both '_dollars' and plain key formats."""
+        val = price.get(f"{field}_dollars") or price.get(field) or 0
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return 0.0
+
+    @staticmethod
     def _candles_to_dataframe(
         candles: list[dict], market: dict, category: str | None = None
     ) -> pd.DataFrame:
@@ -201,19 +219,23 @@ class KalshiClient:
         if not candles:
             return pd.DataFrame()
 
+        _pf = KalshiClient._parse_price_field
+
         rows = []
         for c in candles:
             price = c.get("price", {})
+            vol = c.get("volume_fp") or c.get("volume") or 0
+            oi = c.get("open_interest_fp") or c.get("open_interest") or 0
             rows.append(
                 {
                     "timestamp": c.get("end_period_ts"),
-                    "open": float(price.get("open_dollars", 0)),
-                    "high": float(price.get("high_dollars", 0)),
-                    "low": float(price.get("low_dollars", 0)),
-                    "close": float(price.get("close_dollars", 0)),
-                    "mean": float(price.get("mean_dollars", 0)),
-                    "volume": float(c.get("volume_fp", 0)),
-                    "open_interest": float(c.get("open_interest_fp", 0)),
+                    "open": _pf(price, "open"),
+                    "high": _pf(price, "high"),
+                    "low": _pf(price, "low"),
+                    "close": _pf(price, "close"),
+                    "mean": _pf(price, "mean"),
+                    "volume": float(vol),
+                    "open_interest": float(oi),
                 }
             )
 

@@ -202,21 +202,52 @@ def fetch_news_sentiment(
 # Polling data  (FiveThirtyEight public CSVs)
 # =====================================================================
 
-FIVETHIRTYEIGHT_POLLS_URL = (
-    "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
-)
+FIVETHIRTYEIGHT_POLLS_URLS = [
+    "https://projects.fivethirtyeight.com/polls/data/president_polls.csv",
+    "https://projects.fivethirtyeight.com/polls-page/president_polls.csv",
+]
 
 
 def fetch_polling(
-    url: str = FIVETHIRTYEIGHT_POLLS_URL,
+    url: str | None = None,
+    csv_path: str | None = None,
     start: str = "2023-01-01",
     end: str = "2025-12-31",
 ) -> pd.DataFrame:
-    """Fetch FiveThirtyEight polling data and compute daily averages."""
-    try:
-        df = pd.read_csv(url)
-    except Exception as exc:
-        logger.warning("Could not fetch polling CSV: %s", exc)
+    """Fetch polling data and compute daily averages.
+
+    Tries FiveThirtyEight URLs first; falls back to a local CSV if provided.
+    The FiveThirtyEight CSV endpoint may be unavailable — if so, download
+    polling data manually and pass via `csv_path`.
+    """
+    df = None
+
+    # Try remote URLs
+    urls = [url] if url else FIVETHIRTYEIGHT_POLLS_URLS
+    for u in urls:
+        try:
+            resp = requests.get(u, timeout=15)
+            if resp.status_code == 200 and not resp.text.strip().startswith("<!"):
+                df = pd.read_csv(u)
+                logger.info("Loaded polling data from %s", u)
+                break
+        except Exception as exc:
+            logger.debug("Polling URL %s failed: %s", u, exc)
+
+    # Fall back to local file
+    if df is None and csv_path:
+        try:
+            df = pd.read_csv(csv_path)
+            logger.info("Loaded polling data from local file %s", csv_path)
+        except Exception as exc:
+            logger.warning("Could not read local polling CSV: %s", exc)
+            return pd.DataFrame()
+
+    if df is None:
+        logger.warning(
+            "Polling data unavailable (FiveThirtyEight CSV endpoint may have moved). "
+            "Provide a local CSV via csv_path."
+        )
         return pd.DataFrame()
 
     # Normalize date column
