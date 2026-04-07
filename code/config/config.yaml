@@ -1,0 +1,156 @@
+# ============================================================
+# Master configuration for PM Forecasting
+# ============================================================
+
+seed: 42
+
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  external: data/external
+  models: models/
+  figures: figures/
+
+# ------ Data ingestion ------
+data:
+  polymarket:
+    base_url: "https://clob.polymarket.com"
+    rate_limit_concurrent: 5
+    min_volume_usd: 100_000
+    granularity: "1h"          # 1h | 1d
+    cache_raw_json: true
+
+  kalshi:
+    base_url: "https://api.elections.kalshi.com/trade-api/v2"
+    min_volume_usd: 100_000
+    granularity: "1h"
+
+  exogenous:
+    polling:
+      sources: ["fivethirtyeight", "realclearpolitics"]
+    google_trends:
+      geo: "US"
+      timeframe: "today 3-m"
+    news:
+      provider: "newsapi"      # newsapi | gdelt
+    macro:
+      symbols: ["^VIX", "^GSPC", "^TNX"]
+
+  date_range:
+    start: "2023-01-01"
+    end: "2025-12-31"
+
+# ------ Preprocessing ------
+preprocessing:
+  min_trading_days: 30
+  max_missing_pct: 0.20
+  winsorize_pct: [0.01, 0.99]
+  resample_freq: "1D"         # 1h | 1D
+
+# ------ Feature engineering ------
+features:
+  endogenous:
+    return_windows: [1, 4, 24, 72, 168]   # in hours
+    sma_windows: [7, 14]
+    ema_windows: [7, 14]
+    rsi_period: 14
+    macd: [12, 26, 9]
+    volume_ma_window: 7
+    abnormal_volume_sigma: 2.0
+    amihud_window: 14
+    kyle_lambda_window: 14
+
+  exogenous:
+    polling_momentum_windows: [3, 7]
+    sentiment_momentum_window: 3
+    trends_momentum_window: 7
+    lag_periods: 1             # minimum lag to avoid lookahead
+
+  multicollinearity:
+    max_vif: 10.0
+    max_abs_corr: 0.90
+
+# ------ Target ------
+target:
+  primary: "next_day_log_return"     # regression
+  secondary: "next_day_direction"    # classification (up/down/flat)
+
+# ------ Models ------
+models:
+  baselines:
+    ridge:
+      alpha_range: [0.001, 100.0]
+    lasso:
+      alpha_range: [0.001, 100.0]
+
+  lightgbm:
+    n_trials: 100
+    search_space:
+      n_estimators: [100, 2000]
+      learning_rate: [0.005, 0.3]
+      max_depth: [3, 10]
+      num_leaves: [15, 127]
+      min_child_samples: [5, 100]
+      subsample: [0.5, 1.0]
+      colsample_bytree: [0.3, 1.0]
+      reg_alpha: [1.0e-8, 10.0]
+      reg_lambda: [1.0e-8, 10.0]
+
+  xgboost:
+    n_trials: 50
+
+  lstm:
+    n_trials: 50
+    search_space:
+      seq_len: [7, 14, 21, 30]
+      n_layers: [1, 2, 3]
+      hidden_dim: [32, 64, 128]
+      dropout: [0.1, 0.3, 0.5]
+    training:
+      lr: 1.0e-3
+      weight_decay: 1.0e-5
+      max_norm: 1.0
+      patience_lr: 5
+      patience_early_stop: 10
+      max_epochs: 100
+      batch_size: 64
+
+  tft:
+    n_trials: 30
+    search_space:
+      hidden_size: [16, 64, 128]
+      attention_head_size: [1, 4]
+      dropout: [0.1, 0.3]
+      learning_rate: [1.0e-4, 1.0e-2]
+      hidden_continuous_size: [8, 32, 64]
+
+# ------ Evaluation ------
+evaluation:
+  cv:
+    method: "expanding_window"
+    n_splits: 5
+    gap: 1
+
+  temporal_split:
+    train_end: "2024-10-15"
+    test_start: "2024-10-16"
+    test_end: "2024-11-05"
+
+  trading_sim:
+    transaction_cost_pct: 0.01
+    max_position: 1
+    signal_threshold: 0.0
+
+  statistical_tests:
+    diebold_mariano: true
+    model_confidence_set: true
+    mincer_zarnowitz: true
+    significance_level: 0.10
+
+# ------ Visualization ------
+visualization:
+  style: "seaborn-v0_8-paper"
+  dpi: 300
+  font_family: "Times New Roman"
+  export_formats: ["pdf", "png"]
