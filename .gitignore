@@ -1,0 +1,49 @@
+# Keys and secrets
+*.pem
+*.key
+*.env
+.env
+.env.*
+secrets/
+*.secret
+
+# API keys / credentials
+credentials.json
+token.json
+service_account.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Data (large files)
+*.csv
+*.parquet
+*.h5
+*.hdf5
+data/
+
+# Model artifacts
+*.pt
+*.pth
+*.ckpt
+*.pkl
