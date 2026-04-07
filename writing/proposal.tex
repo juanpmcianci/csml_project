@@ -1,0 +1,89 @@
+\documentclass[12pt]{article}
+
+% ----- Packages -----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}               % Times New Roman clone
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\usepackage{natbib}
+\bibliographystyle{apalike}
+\usepackage{enumitem}
+\usepackage{parskip}
+
+% ----- Title -----
+\title{\textbf{Project Proposal} \\[6pt]
+       \large Case Studies in Machine Learning --- Spring 2026}
+\author{Juan P. Madrigal-Cianci, Ph.D \\ UT EID: jm225572}
+\date{February 17, 2026}
+
+\begin{document}
+\maketitle
+
+% ==================================================================
+\section*{Forecasting Prediction Market Prices Using Ensemble and Deep Learning Models}
+% ==================================================================
+
+% ------------------------------------------------------------------
+\subsection*{1.\quad Introduction and Motivation}
+% ------------------------------------------------------------------
+
+Prediction markets, that is, platforms such as Kalshi and Polymarket where participants trade contracts tied to the outcomes of real-world events, have emerged as powerful aggregators of collective belief.
+Recent empirical evidence suggests that prediction market prices frequently rival or surpass expert forecasts and traditional polling in domains ranging from elections to macroeconomic indicators \citep{Arrow2008, Wolfers2004}.
+Yet despite their informational richness, comparatively little work has applied modern machine learning to the task of \textit{forecasting the price trajectories} of prediction market contracts themselves.
+This gap is surprising given the growing volume of publicly available order-book and pricing data, the high-frequency nature of these markets, and the natural suitability of sequence-based deep learning architectures to such time-series problems.
+
+A recent large-scale study by \citet{Clinton2025} analyzed over 2{,}500 political contracts across Kalshi, Polymarket, and PredictIt during the 2024 U.S.\ presidential election, revealing significant cross-platform price disparities and efficiency failures; suggesting that ML-based forecasting models could exploit predictable patterns in contract price dynamics.
+Similarly, \citet{ng2025price} provide the first evidence on price discovery dynamics across modern prediction markets, finding that net order imbalance from large trades strongly predicts subsequent returns.
+
+This project proposes a systematic comparison of classical supervised learning models and modern deep learning architectures for short-horizon price prediction on prediction market contracts.
+The goal is twofold: 
+\begin{enumerate}
+\item to evaluate which ML methods best capture the dynamics of belief-driven markets, and 
+\item to investigate whether external features, such as news sentiment, polling data, and social-media activity, provide statistically significant improvements over price-only baselines.
+\end{enumerate}
+
+The findings would contribute to the growing literature at the intersection of financial machine learning and information aggregation, with the potential for publication in venues such as \textit{Finance Research Letters}.
+
+% ------------------------------------------------------------------
+\subsection*{2.\quad Research Questions}
+% ------------------------------------------------------------------
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{RQ1:} How accurately can ensemble methods (Random Forest, XGBoost, LightGBM) and recurrent deep learning models (LSTM, GRU, Transformer-based architectures) forecast short-term price movements of prediction market contracts?
+  \item \textbf{RQ2:} Does the incorporation of exogenous features (e.g., news sentiment scores, polling aggregates, Google Trends, and social-media volume) improve forecast accuracy relative to price-only (endogenous) baselines?
+  \item \textbf{RQ3:} What market microstructure features (e.g., bid--ask spread, volume spikes, time-to-expiration) are most predictive of contract price changes, and how do feature importances differ across model families?
+\end{itemize}
+
+% ------------------------------------------------------------------
+\subsection*{3.\quad Data Sources}
+% ------------------------------------------------------------------
+
+The primary dataset will consist of historical contract-level pricing data from \textbf{Polymarket} (sourced via its public API and the Polygonscan blockchain explorer) and \textbf{Kalshi} (via the Kalshi public market data API).
+Contracts will span multiple event categories---political (e.g., U.S.\ elections, policy decisions), economic (e.g., Fed rate decisions, CPI prints), and cultural/sports---to ensure generalizability.
+The target sample will cover contracts active between January 2023 and December 2025, yielding thousands of unique contract time series.
+Exogenous features will be drawn from news APIs (e.g., NewsAPI, GDELT), polling aggregators (e.g., FiveThirtyEight, RealClearPolitics), Google Trends, and Twitter/X volume data.
+
+% ------------------------------------------------------------------
+\subsection*{4.\quad Proposed Methods}
+% ------------------------------------------------------------------
+
+The modeling pipeline will follow the structure introduced in class.
+After data collection and cleaning, features will be engineered at multiple time scales (hourly, daily) and standardized.
+The study will benchmark the following model families:
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Baseline models:} Linear Regression, Ridge/Lasso, na\"ive persistence forecast.
+  \item \textbf{Tree-based ensembles:} Random Forest, Gradient Boosted Trees (XGBoost, LightGBM), with hyperparameter tuning via Optuna \citep{Chen2016}.
+  \item \textbf{Deep learning:} LSTM \citep{Hochreiter1997}, GRU, and a lightweight Temporal Fusion Transformer (TFT) \citep{Lim2021}, implemented in PyTorch.
+  \item \textbf{Evaluation:} Models will be evaluated using MAE, RMSE, directional accuracy, and a simulated trading P\&L metric. Walk-forward (expanding window) cross-validation will be used to respect temporal ordering and avoid lookahead bias.
+\end{itemize}
+
+
+\bibliography{bib}
+
+
+\end{document}
