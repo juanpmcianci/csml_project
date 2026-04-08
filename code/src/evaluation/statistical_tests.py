@@ -227,18 +227,26 @@ def mincer_zarnowitz(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     yp = y_pred[mask]
 
     if len(yt) < 5:
-        return {"alpha": np.nan, "beta": np.nan, "f_pvalue": np.nan}
+        return {"alpha": np.nan, "beta": np.nan, "f_pvalue": np.nan,
+                "alpha_pvalue": np.nan, "beta_pvalue": np.nan, "r_squared": np.nan}
+
+    # Guard against constant predictions (e.g. persistence = all zeros)
+    if np.std(yp) < 1e-12:
+        return {"alpha": np.nan, "beta": np.nan, "f_pvalue": np.nan,
+                "alpha_pvalue": np.nan, "beta_pvalue": np.nan, "r_squared": np.nan}
 
     X = sm.add_constant(yp)
     model = sm.OLS(yt, X).fit()
 
     alpha_hat = model.params[0]
-    beta_hat = model.params[1]
+    beta_hat = model.params[1] if len(model.params) > 1 else np.nan
+
+    beta_pvalue = float(model.pvalues[1]) if len(model.pvalues) > 1 else np.nan
 
     # Joint test: H0: alpha=0, beta=1
-    r_matrix = np.array([[1, 0], [0, 1]])
-    q = np.array([0, 1])
     try:
+        r_matrix = np.array([[1, 0], [0, 1]])
+        q = np.array([0, 1])
         f_test = model.f_test((r_matrix, q))
         f_pvalue = float(f_test.pvalue)
     except Exception:
@@ -247,8 +255,8 @@ def mincer_zarnowitz(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     return {
         "alpha": float(alpha_hat),
         "alpha_pvalue": float(model.pvalues[0]),
-        "beta": float(beta_hat),
-        "beta_pvalue": float(model.pvalues[1]),
+        "beta": float(beta_hat) if not np.isnan(beta_hat) else np.nan,
+        "beta_pvalue": beta_pvalue,
         "f_pvalue": f_pvalue,
         "r_squared": float(model.rsquared),
     }
